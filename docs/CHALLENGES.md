@@ -1,4 +1,4 @@
-# Code ownership challenges (slide 26)
+# Code ownership challenges 
 
 Batasan yang sengaja dibiarkan terbuka, supaya peserta bisa mengambil alih dari agent.
 

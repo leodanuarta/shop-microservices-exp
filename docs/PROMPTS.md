@@ -1,4 +1,4 @@
-# Contoh prompt untuk coding agent (template slide 12)
+# Contoh prompt untuk coding agent
 
 ```
 Context:

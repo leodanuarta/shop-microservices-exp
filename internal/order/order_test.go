@@ -99,3 +99,61 @@ func TestListOrdersFilter(t *testing.T) {
 		}
 	}
 }
+
+func TestGetOrder(t *testing.T) {
+	h := newHandler()
+	rec := post(h, `{"items":[{"product_id":"p-1","quantity":1}]}`)
+	var created Order
+	if err := json.Unmarshal(rec.Body.Bytes(), &created); err != nil {
+		t.Fatal(err)
+	}
+
+	tests := []struct {
+		name       string
+		path       string
+		wantStatus int
+		wantID     string
+	}{
+		{
+			name:       "existing order",
+			path:       "/orders/" + created.ID,
+			wantStatus: http.StatusOK,
+			wantID:     created.ID,
+		},
+		{
+			name:       "missing order",
+			path:       "/orders/non-existent-id",
+			wantStatus: http.StatusNotFound,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			r := httptest.NewRecorder()
+			h.Routes().ServeHTTP(r, httptest.NewRequest(http.MethodGet, tc.path, nil))
+			if r.Code != tc.wantStatus {
+				t.Fatalf("status = %d, want %d", r.Code, tc.wantStatus)
+			}
+			if ct := r.Header().Get("Content-Type"); ct != "application/json" {
+				t.Fatalf("content-type = %q, want application/json", ct)
+			}
+			if tc.wantStatus == http.StatusOK {
+				var got Order
+				if err := json.Unmarshal(r.Body.Bytes(), &got); err != nil {
+					t.Fatal(err)
+				}
+				if got.ID != tc.wantID {
+					t.Fatalf("got id = %s, want %s", got.ID, tc.wantID)
+				}
+			} else {
+				var errResp map[string]string
+				if err := json.Unmarshal(r.Body.Bytes(), &errResp); err != nil {
+					t.Fatal(err)
+				}
+				if errResp["error"] == "" {
+					t.Fatalf("expected error message in body: %s", r.Body.String())
+				}
+			}
+		})
+	}
+}

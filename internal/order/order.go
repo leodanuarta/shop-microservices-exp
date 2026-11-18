@@ -63,6 +63,18 @@ func (s *Store) List(status string) []Order {
 	return out
 }
 
+// Get returns an order by ID.
+func (s *Store) Get(id string) (Order, bool) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	for _, o := range s.orders {
+		if o.ID == id {
+			return o, true
+		}
+	}
+	return Order{}, false
+}
+
 // Handler wires HTTP to the store and the product client.
 type Handler struct {
 	store    *Store
@@ -71,17 +83,27 @@ type Handler struct {
 
 func NewHandler(s *Store, pc ProductClient) *Handler { return &Handler{store: s, products: pc} }
 
-// Routes registers: GET /health, GET /orders, POST /orders.
+// Routes registers: GET /health, GET /orders, GET /orders/{id}, POST /orders.
 func (h *Handler) Routes() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /health", httpx.Health("order-service"))
 	mux.HandleFunc("GET /orders", h.list)
+	mux.HandleFunc("GET /orders/{id}", h.get)
 	mux.HandleFunc("POST /orders", h.create)
 	return mux
 }
 
 func (h *Handler) list(w http.ResponseWriter, r *http.Request) {
 	httpx.JSON(w, http.StatusOK, h.store.List(r.URL.Query().Get("status")))
+}
+
+func (h *Handler) get(w http.ResponseWriter, r *http.Request) {
+	o, ok := h.store.Get(r.PathValue("id"))
+	if !ok {
+		httpx.Error(w, http.StatusNotFound, "order not found")
+		return
+	}
+	httpx.JSON(w, http.StatusOK, o)
 }
 
 type createRequest struct {
